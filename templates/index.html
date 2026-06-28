@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Atmos — AI Environmental Impact Console</title>
+<meta name="description" content="Estimate the carbon, energy, and water footprint of AI training and inference." />
+<meta name="theme-color" content="#0E1411" />
+<link rel="manifest" href="{{ url_for('manifest') }}" />
+<link rel="icon" href="{{ url_for('static', filename='icons/icon-192.png') }}" />
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wordmark">
+    <span class="dot" aria-hidden="true"></span>
+    <span class="wordmark-text">ATMOS</span>
+    <span class="wordmark-sub">AI IMPACT CONSOLE</span>
+  </div>
+  <div class="topbar-status">
+    <span id="install-btn" class="install-pill" hidden>Install app</span>
+    <span class="status-tag" id="conn-status">● live</span>
+  </div>
+</header>
+
+<main class="layout">
+
+  <!-- ============ LEFT: CONTROL PANEL ============ -->
+  <section class="panel controls" aria-label="Input parameters">
+    <h2 class="panel-title">01 — Parameters</h2>
+
+    <form id="calc-form">
+      <div class="field">
+        <label for="mode">Workload</label>
+        <select id="mode" name="mode">
+          {% for key, m in modes.items() %}
+          <option value="{{ key }}" {% if key=='inference' %}selected{% endif %}>{{ m.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="model_size_b">Model size <span class="unit">billion params</span></label>
+        <input type="range" id="model_size_b_range" min="0.1" max="1000" step="0.1" value="7" />
+        <input type="number" id="model_size_b" name="model_size_b" value="7" min="0.01" step="0.1" />
+      </div>
+
+      <div class="field">
+        <label for="hardware">Hardware</label>
+        <select id="hardware" name="hardware">
+          {% for key, hw in hardware.items() %}
+          <option value="{{ key }}" {% if key=='a100' %}selected{% endif %}>{{ hw.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="num_units">Number of units</label>
+        <input type="number" id="num_units" name="num_units" value="1" min="1" step="1" />
+      </div>
+
+      <div class="field">
+        <label for="exec_hours">Execution time <span class="unit">hours</span></label>
+        <input type="number" id="exec_hours" name="exec_hours" value="2" min="0.01" step="0.1" />
+      </div>
+
+      <div class="field">
+        <label for="utilization_pct">Utilization rate <span class="unit" id="util-readout">70%</span></label>
+        <input type="range" id="utilization_pct" name="utilization_pct" min="1" max="100" value="70" />
+      </div>
+
+      <div class="field">
+        <label for="region">Deployment location</label>
+        <select id="region" name="region">
+          {% for key, r in regions.items() %}
+          <option value="{{ key }}" {% if key=='nigeria' %}selected{% endif %}>{{ r.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field field-toggle">
+        <label for="use_live" class="toggle-label">
+          <input type="checkbox" id="use_live" name="use_live" />
+          <span>Use live grid carbon intensity (electricityMaps)</span>
+        </label>
+        <p class="live-status" id="live-status"></p>
+      </div>
+
+      <button type="submit" class="run-btn">Run estimate</button>
+    </form>
+  </section>
+
+  <!-- ============ CENTER: DIAL CLUSTER (signature element) ============ -->
+  <section class="panel readout" aria-label="Footprint readout">
+    <h2 class="panel-title">02 — Readout</h2>
+
+    <div class="dial-cluster" id="dial-cluster">
+      <div class="dial" data-metric="energy">
+        <svg viewBox="0 0 120 120" class="dial-svg">
+          <circle class="dial-track" cx="60" cy="60" r="50" />
+          <circle class="dial-fill" cx="60" cy="60" r="50" id="dial-fill-energy" />
+        </svg>
+        <div class="dial-readout">
+          <span class="dial-value" id="val-energy">0</span>
+          <span class="dial-unit">kWh</span>
+        </div>
+        <div class="dial-label">Energy</div>
+      </div>
+
+      <div class="dial" data-metric="carbon">
+        <svg viewBox="0 0 120 120" class="dial-svg">
+          <circle class="dial-track" cx="60" cy="60" r="50" />
+          <circle class="dial-fill" cx="60" cy="60" r="50" id="dial-fill-carbon" />
+        </svg>
+        <div class="dial-readout">
+          <span class="dial-value" id="val-carbon">0</span>
+          <span class="dial-unit">kg CO₂e</span>
+        </div>
+        <div class="dial-label">Carbon</div>
+      </div>
+
+      <div class="dial" data-metric="water">
+        <svg viewBox="0 0 120 120" class="dial-svg">
+          <circle class="dial-track" cx="60" cy="60" r="50" />
+          <circle class="dial-fill" cx="60" cy="60" r="50" id="dial-fill-water" />
+        </svg>
+        <div class="dial-readout">
+          <span class="dial-value" id="val-water">0</span>
+          <span class="dial-unit">litres</span>
+        </div>
+        <div class="dial-label">Water</div>
+      </div>
+    </div>
+
+    <div class="efficiency-strip">
+      <span class="eff-label">Efficiency index</span>
+      <span class="eff-value" id="val-efficiency">—</span>
+    </div>
+
+    <p class="data-source-caption" id="data-source-caption">
+      Carbon figure: <strong id="carbon-source-label">static reference value</strong>
+    </p>
+
+    <div class="comparisons" id="comparisons" hidden>
+      <h3>In real-world terms, this is roughly equivalent to:</h3>
+      <ul>
+        <li><strong id="cmp-car">—</strong> km driven by an average petrol car</li>
+        <li><strong id="cmp-household">—</strong> days of an average household's electricity use</li>
+        <li><strong id="cmp-shower">—</strong> 5-minute showers worth of water</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ RIGHT: SENSITIVITY CHARTS ============ -->
+  <section class="panel charts" aria-label="Sensitivity analysis">
+    <h2 class="panel-title">03 — Sensitivity</h2>
+    <p class="panel-hint">How the carbon footprint shifts if you change one factor at a time.</p>
+
+    <div class="chart-block">
+      <h3>By hardware</h3>
+      <canvas id="chart-hardware" height="160"></canvas>
+    </div>
+    <div class="chart-block">
+      <h3>By deployment region</h3>
+      <canvas id="chart-region" height="160"></canvas>
+    </div>
+    <div class="chart-block">
+      <h3>By utilization rate</h3>
+      <canvas id="chart-utilization" height="160"></canvas>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <p>Atmos estimates are illustrative, derived from public sustainability datasets and simplified models — built for awareness and education, not precision auditing.</p>
+</footer>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
