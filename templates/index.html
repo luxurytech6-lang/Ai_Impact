@@ -4,181 +4,309 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Atmos — AI Environmental Impact Console</title>
-<meta name="description" content="Estimate the carbon, energy, and water footprint of AI training and inference." />
-<meta name="theme-color" content="#0E1411" />
+<meta name="description" content="Estimate the carbon, energy and water footprint of AI training and inference workloads." />
+<meta name="theme-color" content="#090E0C" />
 <link rel="manifest" href="{{ url_for('manifest') }}" />
 <link rel="icon" href="{{ url_for('static', filename='icons/icon-192.png') }}" />
 <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 </head>
 <body>
 
+<!-- ================================================================
+     TOP BAR
+     ================================================================ -->
 <header class="topbar">
   <div class="wordmark">
-    <span class="dot" aria-hidden="true"></span>
+    <div class="wordmark-beacon" aria-hidden="true"></div>
     <span class="wordmark-text">ATMOS</span>
-    <span class="wordmark-sub">AI IMPACT CONSOLE</span>
+    <span class="wordmark-sep">·</span>
+    <span class="wordmark-sub">AI Impact Console</span>
   </div>
-  <div class="topbar-status">
-    <span id="install-btn" class="install-pill" hidden>Install app</span>
-    <span class="status-tag" id="conn-status">● live</span>
+  <div class="topbar-right">
+    <button id="install-btn" class="install-pill" hidden aria-label="Install Atmos as an app">
+      ↓ Install app
+    </button>
+    <div class="conn-tag" id="conn-tag" role="status" aria-live="polite">
+      <div class="conn-dot"></div>
+      <span id="conn-label">live</span>
+    </div>
   </div>
 </header>
 
+<!-- ================================================================
+     MAIN LAYOUT
+     ================================================================ -->
 <main class="layout">
 
-  <!-- ============ LEFT: CONTROL PANEL ============ -->
-  <section class="panel controls" aria-label="Input parameters">
-    <h2 class="panel-title">01 — Parameters</h2>
+  <!-- ============================================================
+       PANEL 01 — PARAMETERS
+       ============================================================ -->
+  <section class="panel controls" aria-labelledby="params-title">
+    <div class="panel-header">
+      <h2 class="panel-title" id="params-title">Parameters</h2>
+      <span class="panel-step">01</span>
+    </div>
+    <div class="panel-body">
+      <form id="calc-form" novalidate>
 
-    <form id="calc-form">
-      <div class="field">
-        <label for="mode">Workload</label>
-        <select id="mode" name="mode">
-          {% for key, m in modes.items() %}
-          <option value="{{ key }}" {% if key=='inference' %}selected{% endif %}>{{ m.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
+        <div class="field">
+          <div class="field-label">
+            <label for="mode">Workload type</label>
+          </div>
+          <select id="mode" name="mode" aria-describedby="mode-err">
+            {% for key, m in modes.items() %}
+            <option value="{{ key }}" {% if key=='inference' %}selected{% endif %}>{{ m.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
 
-      <div class="field">
-        <label for="model_size_b">Model size <span class="unit">billion params</span></label>
-        <input type="range" id="model_size_b_range" min="0.1" max="1000" step="0.1" value="7" />
-        <input type="number" id="model_size_b" name="model_size_b" value="7" min="0.01" step="0.1" />
-      </div>
+        <div class="field">
+          <div class="field-label">
+            <label for="model_size_b">Model size</label>
+            <span class="field-unit">billion params</span>
+          </div>
+          <div class="range-pair">
+            <input type="range" id="model_size_b_range" min="0.1" max="1000" step="0.1" value="7"
+                   aria-label="Model size slider" />
+            <input type="number" id="model_size_b" name="model_size_b"
+                   value="7" min="0.01" max="1000" step="0.1"
+                   aria-describedby="model-err" />
+          </div>
+          <div class="field-error" id="model-err" role="alert"></div>
+        </div>
 
-      <div class="field">
-        <label for="hardware">Hardware</label>
-        <select id="hardware" name="hardware">
-          {% for key, hw in hardware.items() %}
-          <option value="{{ key }}" {% if key=='a100' %}selected{% endif %}>{{ hw.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
+        <div class="field">
+          <div class="field-label">
+            <label for="hardware">Hardware</label>
+          </div>
+          <select id="hardware" name="hardware">
+            {% for key, hw in hardware.items() %}
+            <option value="{{ key }}" {% if key=='a100' %}selected{% endif %}>{{ hw.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
 
-      <div class="field">
-        <label for="num_units">Number of units</label>
-        <input type="number" id="num_units" name="num_units" value="1" min="1" step="1" />
-      </div>
+        <div class="field">
+          <div class="field-label">
+            <label for="num_units">Number of units</label>
+          </div>
+          <input type="number" id="num_units" name="num_units"
+                 value="1" min="1" max="10000" step="1"
+                 aria-describedby="units-err" />
+          <div class="field-error" id="units-err" role="alert"></div>
+        </div>
 
-      <div class="field">
-        <label for="exec_hours">Execution time <span class="unit">hours</span></label>
-        <input type="number" id="exec_hours" name="exec_hours" value="2" min="0.01" step="0.1" />
-      </div>
+        <div class="field">
+          <div class="field-label">
+            <label for="exec_hours">Execution time</label>
+            <span class="field-unit">hours</span>
+          </div>
+          <input type="number" id="exec_hours" name="exec_hours"
+                 value="2" min="0.01" max="87600" step="0.01"
+                 aria-describedby="hours-err" />
+          <div class="field-error" id="hours-err" role="alert"></div>
+        </div>
 
-      <div class="field">
-        <label for="utilization_pct">Utilization rate <span class="unit" id="util-readout">70%</span></label>
-        <input type="range" id="utilization_pct" name="utilization_pct" min="1" max="100" value="70" />
-      </div>
+        <div class="field">
+          <div class="field-label">
+            <label for="utilization_pct">Utilization rate</label>
+            <span class="field-unit" id="util-readout" aria-live="polite">70%</span>
+          </div>
+          <input type="range" id="utilization_pct" name="utilization_pct"
+                 min="1" max="100" step="1" value="70"
+                 aria-valuemin="1" aria-valuemax="100" aria-valuenow="70"
+                 aria-label="GPU/hardware utilization rate" />
+        </div>
 
-      <div class="field">
-        <label for="region">Deployment location</label>
-        <select id="region" name="region">
-          {% for key, r in regions.items() %}
-          <option value="{{ key }}" {% if key=='nigeria' %}selected{% endif %}>{{ r.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
+        <div class="field-divider"></div>
 
-      <div class="field field-toggle">
-        <label for="use_live" class="toggle-label">
-          <input type="checkbox" id="use_live" name="use_live" />
-          <span>Use live grid carbon intensity (electricityMaps)</span>
-        </label>
-        <p class="live-status" id="live-status"></p>
-      </div>
+        <div class="field">
+          <div class="field-label">
+            <label for="region">Deployment region</label>
+          </div>
+          <select id="region" name="region">
+            {% for key, r in regions.items() %}
+            <option value="{{ key }}" {% if key=='nigeria' %}selected{% endif %}>{{ r.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
 
-      <button type="submit" class="run-btn">Run estimate</button>
-    </form>
+        <div class="field">
+          <div class="field-toggle">
+            <label class="toggle-row" for="use_live">
+              <input type="checkbox" id="use_live" name="use_live" />
+              <span>Use live grid intensity (electricityMaps)</span>
+            </label>
+            <div class="live-msg" id="live-msg" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <button type="submit" class="run-btn" id="run-btn">
+          <span class="btn-text">Run estimate</span>
+        </button>
+
+      </form>
+    </div>
   </section>
 
-  <!-- ============ CENTER: DIAL CLUSTER (signature element) ============ -->
-  <section class="panel readout" aria-label="Footprint readout">
-    <h2 class="panel-title">02 — Readout</h2>
+  <!-- ============================================================
+       PANEL 02 — READOUT
+       ============================================================ -->
+  <section class="panel readout" aria-labelledby="readout-title">
+    <div class="panel-header">
+      <h2 class="panel-title" id="readout-title">Footprint readout</h2>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="export-btn" id="export-btn" title="Export results as JSON" aria-label="Export results">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
+        </button>
+        <span class="panel-step">02</span>
+      </div>
+    </div>
 
-    <div class="dial-cluster" id="dial-cluster">
+    <!-- Dial cluster -->
+    <div class="dial-cluster" role="group" aria-label="Footprint metrics">
+
       <div class="dial" data-metric="energy">
-        <svg viewBox="0 0 120 120" class="dial-svg">
-          <circle class="dial-track" cx="60" cy="60" r="50" />
-          <circle class="dial-fill" cx="60" cy="60" r="50" id="dial-fill-energy" />
-        </svg>
-        <div class="dial-readout">
-          <span class="dial-value" id="val-energy">0</span>
-          <span class="dial-unit">kWh</span>
+        <div class="dial-svg-wrap">
+          <svg class="dial-svg" viewBox="0 0 108 108" aria-hidden="true">
+            <circle class="dial-track" cx="54" cy="54" r="44" />
+            <!-- Tick marks -->
+            <g class="dial-ticks" id="ticks-energy"></g>
+            <circle class="dial-fill" id="dial-fill-energy" cx="54" cy="54" r="44" />
+          </svg>
+          <div class="dial-center">
+            <span class="dial-value" id="val-energy">—</span>
+            <span class="dial-unit-label">kWh</span>
+          </div>
         </div>
-        <div class="dial-label">Energy</div>
+        <div class="dial-name">Energy</div>
       </div>
 
       <div class="dial" data-metric="carbon">
-        <svg viewBox="0 0 120 120" class="dial-svg">
-          <circle class="dial-track" cx="60" cy="60" r="50" />
-          <circle class="dial-fill" cx="60" cy="60" r="50" id="dial-fill-carbon" />
-        </svg>
-        <div class="dial-readout">
-          <span class="dial-value" id="val-carbon">0</span>
-          <span class="dial-unit">kg CO₂e</span>
+        <div class="dial-svg-wrap">
+          <svg class="dial-svg" viewBox="0 0 108 108" aria-hidden="true">
+            <circle class="dial-track" cx="54" cy="54" r="44" />
+            <g class="dial-ticks" id="ticks-carbon"></g>
+            <circle class="dial-fill" id="dial-fill-carbon" cx="54" cy="54" r="44" />
+          </svg>
+          <div class="dial-center">
+            <span class="dial-value" id="val-carbon">—</span>
+            <span class="dial-unit-label">kg CO₂e</span>
+          </div>
         </div>
-        <div class="dial-label">Carbon</div>
+        <div class="dial-name">Carbon</div>
       </div>
 
       <div class="dial" data-metric="water">
-        <svg viewBox="0 0 120 120" class="dial-svg">
-          <circle class="dial-track" cx="60" cy="60" r="50" />
-          <circle class="dial-fill" cx="60" cy="60" r="50" id="dial-fill-water" />
-        </svg>
-        <div class="dial-readout">
-          <span class="dial-value" id="val-water">0</span>
-          <span class="dial-unit">litres</span>
+        <div class="dial-svg-wrap">
+          <svg class="dial-svg" viewBox="0 0 108 108" aria-hidden="true">
+            <circle class="dial-track" cx="54" cy="54" r="44" />
+            <g class="dial-ticks" id="ticks-water"></g>
+            <circle class="dial-fill" id="dial-fill-water" cx="54" cy="54" r="44" />
+          </svg>
+          <div class="dial-center">
+            <span class="dial-value" id="val-water">—</span>
+            <span class="dial-unit-label">litres</span>
+          </div>
         </div>
-        <div class="dial-label">Water</div>
+        <div class="dial-name">Water</div>
+      </div>
+
+    </div>
+
+    <!-- Efficiency -->
+    <div class="eff-strip">
+      <span class="eff-label">Efficiency index</span>
+      <span class="eff-value" id="val-efficiency" aria-live="polite">—</span>
+    </div>
+
+    <!-- Carbon source tag -->
+    <div class="source-row">
+      <span style="color:var(--ink-dim);font-size:10.5px;">Carbon:</span>
+      <span class="source-badge" id="source-badge">
+        <div class="dot"></div>
+        <span id="source-label">awaiting calculation</span>
+      </span>
+    </div>
+
+    <!-- Comparisons -->
+    <div class="comparisons" id="comparisons" hidden aria-live="polite">
+      <div class="comparisons-title">Real-world equivalents</div>
+      <div class="cmp-row">
+        <span class="cmp-icon" aria-hidden="true">🚗</span>
+        <span class="cmp-val" id="cmp-car">—</span>
+        <span class="cmp-desc">km driven by an average petrol car</span>
+      </div>
+      <div class="cmp-row">
+        <span class="cmp-icon" aria-hidden="true">🏠</span>
+        <span class="cmp-val" id="cmp-household">—</span>
+        <span class="cmp-desc">days of a household's electricity</span>
+      </div>
+      <div class="cmp-row">
+        <span class="cmp-icon" aria-hidden="true">🚿</span>
+        <span class="cmp-val" id="cmp-shower">—</span>
+        <span class="cmp-desc">5-minute showers worth of water</span>
       </div>
     </div>
 
-    <div class="efficiency-strip">
-      <span class="eff-label">Efficiency index</span>
-      <span class="eff-value" id="val-efficiency">—</span>
-    </div>
-
-    <p class="data-source-caption" id="data-source-caption">
-      Carbon figure: <strong id="carbon-source-label">static reference value</strong>
-    </p>
-
-    <div class="comparisons" id="comparisons" hidden>
-      <h3>In real-world terms, this is roughly equivalent to:</h3>
-      <ul>
-        <li><strong id="cmp-car">—</strong> km driven by an average petrol car</li>
-        <li><strong id="cmp-household">—</strong> days of an average household's electricity use</li>
-        <li><strong id="cmp-shower">—</strong> 5-minute showers worth of water</li>
-      </ul>
-    </div>
   </section>
 
-  <!-- ============ RIGHT: SENSITIVITY CHARTS ============ -->
-  <section class="panel charts" aria-label="Sensitivity analysis">
-    <h2 class="panel-title">03 — Sensitivity</h2>
-    <p class="panel-hint">How the carbon footprint shifts if you change one factor at a time.</p>
+  <!-- ============================================================
+       PANEL 03 — SENSITIVITY CHARTS
+       ============================================================ -->
+  <section class="panel charts" aria-labelledby="sens-title">
+    <div class="panel-header">
+      <h2 class="panel-title" id="sens-title">Sensitivity analysis</h2>
+      <span class="panel-step">03</span>
+    </div>
 
     <div class="chart-block">
-      <h3>By hardware</h3>
-      <canvas id="chart-hardware" height="160"></canvas>
+      <div class="chart-label">Carbon footprint by hardware</div>
+      <div class="chart-wrap" style="position:relative;height:160px;">
+        <div class="chart-placeholder" id="ph-hardware">
+          <span class="ph-text">Run an estimate to see results</span>
+        </div>
+        <canvas id="chart-hardware" role="img" aria-label="Bar chart comparing carbon footprint across different hardware types" style="display:none;"></canvas>
+      </div>
     </div>
+
     <div class="chart-block">
-      <h3>By deployment region</h3>
-      <canvas id="chart-region" height="160"></canvas>
+      <div class="chart-label">Carbon footprint by region</div>
+      <div class="chart-wrap" style="position:relative;height:160px;">
+        <div class="chart-placeholder" id="ph-region">
+          <span class="ph-text">Run an estimate to see results</span>
+        </div>
+        <canvas id="chart-region" role="img" aria-label="Bar chart comparing carbon footprint across deployment regions" style="display:none;"></canvas>
+      </div>
     </div>
+
     <div class="chart-block">
-      <h3>By utilization rate</h3>
-      <canvas id="chart-utilization" height="160"></canvas>
+      <div class="chart-label">Carbon footprint by utilization</div>
+      <div class="chart-wrap" style="position:relative;height:140px;">
+        <div class="chart-placeholder" id="ph-utilization">
+          <span class="ph-text">Run an estimate to see results</span>
+        </div>
+        <canvas id="chart-utilization" role="img" aria-label="Line chart showing how carbon footprint changes with utilization rate" style="display:none;"></canvas>
+      </div>
     </div>
+
   </section>
 
 </main>
 
+<!-- Toast -->
+<div id="toast" role="status" aria-live="assertive" aria-atomic="true"></div>
+
 <footer class="footer">
-  <p>Atmos estimates are illustrative, derived from public sustainability datasets and simplified models — built for awareness and education, not precision auditing.</p>
+  <p>Atmos estimates are illustrative and derived from public sustainability datasets (LowCarbonPower.org / Ember / IEA). Results are for awareness and education — not a precision carbon audit. Water figures use NREL-based modelled estimates.</p>
 </footer>
 
+<script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

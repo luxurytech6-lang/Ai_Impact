@@ -10,7 +10,7 @@ Setup:
 1. Get a free-tier API key: https://api-portal.electricitymaps.com/
 2. Set it as an environment variable before running the app:
    ```bash
-   export ELECTRICITYMAPS_API_KEY=5Ts7x9rxPpHYp8EXjzEm
+   export ELECTRICITYMAPS_API_KEY=your_key_here
    python3 app.py
    ```
 3. Without a key set, the checkbox still works in the UI but the app

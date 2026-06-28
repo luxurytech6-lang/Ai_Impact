@@ -1,13 +1,11 @@
 {
   "name": "Atmos — AI Environmental Impact Console",
   "short_name": "Atmos",
-  "description": "Estimate the carbon, energy, and water footprint of AI training and inference workloads.",
+  "description": "Estimate the carbon, energy and water footprint of AI training and inference workloads.",
   "start_url": "/",
-  "scope": "/",
   "display": "standalone",
-  "background_color": "#0E1411",
-  "theme_color": "#0E1411",
-  "orientation": "portrait-primary",
+  "background_color": "#090E0C",
+  "theme_color": "#090E0C",
   "icons": [
     {
       "src": "/static/icons/icon-192.png",
@@ -19,13 +17,7 @@
       "src": "/static/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/static/icons/icon-512-maskable.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     }
   ]
 }
