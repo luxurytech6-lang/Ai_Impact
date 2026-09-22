@@ -1,6 +1,14 @@
 """
 Atmos — AI Environmental Impact Calculator
-Flask backend v2.0
+Flask backend v2.1
+
+Changes from v2.0:
+  - Loads environment variables from a .env file via python-dotenv, so
+    ELECTRICITYMAPS_API_KEY (and anything else in .env) is actually picked
+    up when running `python app.py` directly. load_dotenv() runs BEFORE
+    `import electricitymaps`, since that module reads os.environ at
+    call-time inside get_live_intensity() — but being safe/explicit here
+    avoids any import-order surprises.
 
 Changes from v1:
   - Input validation with descriptive error messages (validate_inputs helper)
@@ -15,6 +23,10 @@ from __future__ import annotations
 import math
 import time
 from typing import Any
+
+from dotenv import load_dotenv
+
+load_dotenv()  # reads .env in the working directory into os.environ
 
 import electricitymaps
 from flask import Flask, jsonify, render_template, request, send_from_directory
